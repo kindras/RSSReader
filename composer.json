@@ -1,0 +1,17 @@
+{
+    "require": {
+        "silex/silex": "~1.2",
+        "twig/twig": "~1.0"
+    },
+  	"require-dev": {
+	  	"phpunit/phpunit": "4.5.*"
+	},
+    "autoload": {
+		"classmap": [
+			"src/Entity",
+			"src/Controller",
+			"src/DataAccessLayer",
+			"src/Repository"
+		]
+	}
+}
