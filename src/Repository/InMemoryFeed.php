@@ -15,21 +15,16 @@ class InMemoryFeed implements FeedRepository
 	{
 		return $this->feeds;
 	}
-
-	public function find($id)
-	{
-
-	}
 	
-	public function insert(Feed $feed)
+	public function insert()
 	{
 	}
 	
-	public function update($id, $name)
+	public function update()
 	{
 	}
 	
-	public function delete($id)
+	public function delete()
 	{
 	}
 }

@@ -1,6 +1,6 @@
 <?php
 
-class DatabaseFeed implements FeedRepository
+class InMemoryFeed implements FeedRepository
 {
 	private $con;
 	
@@ -8,17 +8,12 @@ class DatabaseFeed implements FeedRepository
 	{
 		$this->con = $con;
 	}
-
-	public function find($id)
-	{
-
-	}
-
+	
 	public function findAll()
 	{
 	}
 	
-	public function insert(Feed $feed)
+	public function insert()
 	{
 	}
 	
@@ -38,7 +33,7 @@ class DatabaseFeed implements FeedRepository
 		]);
 	}
 	
-	public function delete($id)
+	public function delete()
 	{
 	}
 }

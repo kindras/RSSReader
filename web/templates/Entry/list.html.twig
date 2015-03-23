@@ -1,0 +1,25 @@
+{% extends "layout.html.twig" %}
+
+{% block content %}
+
+    <div class="list-block accordion-list">
+        <ul>
+            {% for entry in entries %}
+                <li class="accordion-item">
+                    <a href="" class="item-link item-content">
+                        <div class="item-inner">
+                            <div class="item-title">{{ entry.title }}</div>
+                        </div>
+                    </a> 
+                    <div class="accordion-item-content">
+                        <div class="content-block">
+                            <p>{{ entry.content }}</p>
+                            <p>{{ entry.author }} le <i>{{ entry.date|date('d/m/Y h:i') }}</i></p>
+                        </div>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+{% endblock %}

@@ -2,10 +2,14 @@
 
 interface FeedRepository
 {
-	public function findAll();
-	public function find($id);
-	
-	public function insert(Feed $feed);
-	public function update($id, $name);
-	public function delete($id);
+
+    public function find($id);
+    
+    public function findAll();
+
+    public function insert(Feed $feed);
+
+    public function update(Feed $feed);
+
+    public function delete(Feed $feed);
 }

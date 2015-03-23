@@ -1,0 +1,21 @@
+.menu {
+    background-color: #222426;
+}
+
+.menu .list-block ul::before {
+    background-color: #393939;
+}
+
+.menu .list-block ul::after {
+    background-color: #393939;
+}
+
+.menu .list-block .item-inner::after {
+    background-color: #393939;
+}
+
+.menu .list-block ul li
+{
+    background-color: #1C1D1F;
+    color: #ddd;
+}
