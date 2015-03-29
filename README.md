@@ -62,7 +62,7 @@ Veuillez remplir la classe `src/Credentials/Credentials.php` avec vos identifian
 /RSSReader/>$ cd web/
 /RSSReader/web/>$ php -S localhost:4000
 ```
-Dans un navigateur : http://localhost:4000/app.php
+Dans un navigateur : [http://localhost:4000/app.php](http://localhost:4000/app.php)
 
 * Exécuter l'application Console :
 ```bash
@@ -70,12 +70,10 @@ Dans un navigateur : http://localhost:4000/app.php
 ```
 
 * Effectuer les tests :
-	* `behat` : Tests présents dans `features/`.
+    * `behat` : Tests présents dans `features/`.
+    * `phpunit` : Tests présents dans `tests/`.
 ```
-	/RSSReader/>$ bin/behat
-```
-	* `phpunit` : Tests présents dans `tests/`.
-```
-	/RSSReader/>$ phpunit --bootstrap vendor/autoload.php
+/RSSReader/>$ bin/behat
+/RSSReader/>$ phpunit --bootstrap vendor/autoload.php
 ```
 
