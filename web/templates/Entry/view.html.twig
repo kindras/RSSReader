@@ -1,0 +1,40 @@
+{% extends "layout.html.twig" %}
+
+{% block page %}entry{% endblock %}
+
+{% block navbar %}
+    <div class="navbar">
+        <div class="navbar-inner">
+            <!-- Now, Left and Center parts reflect page title and page links, let's slide them -->
+            <div class="left sliding">
+                <a href="/app.php/feeds/{{ entry.feed.id }}" class="link">
+                    <i class="icon icon-back">&nbsp;</i>
+                    <span>{{ entry.feed.title }}</span>
+                </a>
+            </div>
+            <div class="center sliding">[{{ entry.feed.title }}] {{ entry.title }}</div>
+
+            <!-- Right part doesn't related to other pages -->
+            <div class="right">
+                <a href="#" class="link icon-only open-panel"><i class="icon icon-bars"></i></a>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+
+    {#<div class="content-block-title">Inset</div>#}
+    <!-- Inset content block -->
+    <div class="content-block inset entry">
+        <div class="content-block-inner">
+            <div style="max-width: 768px; margin: auto;">
+                <h1 style="margin-bottom: -15px; ">{{ entry.title|raw }}</h1>
+                <p style="color: #888;"><a href="{{ entry.feed.siteUrl }}">{{ entry.feed.title }}</a> by {{ entry.author }} - {{ entry.date|date('d/m/Y H:i:s') }}</p>
+                <hr>
+                <p>{{ entry.content|raw }}</p>
+                <p><a href="{{ entry.url }}" class="button button-big">Read the news on {{ entry.feed.title }}</a></p>
+            </div>
+        </div>
+    </div>
+{% endblock %}

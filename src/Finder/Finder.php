@@ -10,6 +10,7 @@ class Finder
         if (isset(self::$identityMap[$key])) {
             return self::$identityMap[$key];
         }
+
         return false;
     }
 
@@ -24,11 +25,12 @@ class Finder
     public static function isInMap($class, $id)
     {
         $key = self::generateKey($class, $id);
-        return in_array($key, self::$identityMap);
+
+        return isset(self::$identityMap[$key]);
     }
-    
+
     private static function generateKey($class, $id)
     {
-        return $class . '-' . $id;
+        return $class.'-'.$id;
     }
 }

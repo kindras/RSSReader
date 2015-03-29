@@ -3,164 +3,144 @@
 class EntryMapper implements EntryRepository
 {
 
-    private $con;
+    private static $instance = null;
 
-    public function __construct($con)
+    public static function getInstance()
     {
-        $this->con = $con;
+        if (null === self::$instance) {
+            self::$instance = new EntryMapper();
+        }
+
+        return self::$instance;
     }
 
-    /**
-     * @param  int   $id  The id of the entry to retrieve
-     *
-     * @return bool  Returns the entry found
-     */
+    private function __construct()
+    {
+    }
+
     public function find($id)
     {
         $entry = null;
-        if (false !== ($entryLoaded = Finder::loadEntity('Entry', $id)))
-        {
+        if (false !== ($entryLoaded = Finder::loadEntity('Entry', $id))) {
             $entry = $entryLoaded;
-        }
-        else
-        {
-            $query = QueryGenerator::generateSelectQuery(Entry::$TABLE_NAME, null, [Entry::$COLUMN_ID]);
+        } else {
+            $query = QueryGenerator::getInstance()->generateSelectQuery(Entry::$TABLE_NAME, [], [Entry::$COLUMN_ID]);
             $parameters = array(
-                Entry::$COLUMN_ID => $id
+                Entry::$COLUMN_ID => $id,
             );
-            $stmt = $this->con->executeQuery($query, true, $parameters);
-            $result = $stmt->fetch();
-            $entry = new Entry($result[Entry::$COLUMN_ID], $result[Entry::$COLUMN_GUID], $result[Entry::$COLUMN_TITLE], $result[Entry::$COLUMN_DATE], $result[Entry::$COLUMN_URL], $result[Entry::$COLUMN_AUTHOR], $result[Entry::$COLUMN_CONTENT], $result[Entry::$COLUMN_ENCLOSUREURL], $result[Entry::$COLUMN_ENCLOSURETYPE]);
-
-            Finder::storeEntity($entry);
+            $stmt = Connection::getInstance()->executeQuery($query, true, $parameters);
+            if ($stmt) {
+                $result = $stmt->fetch();
+                $entry = new Entry($result[Entry::$COLUMN_ID], $result[Entry::$COLUMN_GUID], $result[Entry::$COLUMN_TITLE], DateManipulator::getInstance()->fromDatabaseToDateTime($result[Entry::$COLUMN_DATE]), $result[Entry::$COLUMN_URL], $result[Entry::$COLUMN_CONTENT], $result[Entry::$COLUMN_AUTHOR], $result[Entry::$COLUMN_ENCLOSUREURL], $result[Entry::$COLUMN_ENCLOSURETYPE], $result[Entry::$COLUMN_ISREAD]);
+                Finder::storeEntity($entry);
+                $entry->setFeed(FeedMapper::getInstance()->find($result[Entry::$COLUMN_FEEDID]));
+            }
         }
 
         return $entry;
     }
 
-    /*
-      public function find($id)
-      {
-      $query = QueryGenerator::generateSelectQuery(Entry::$TABLE_NAME, null, [Entry::$COLUMN_ID]);
-      $parameters = array(
-      Entry::$COLUMN_ID => $id
-      );
-      var_dump($query);
-      $stmt = $this->con->executeQuery($query, true, $parameters);
-      $result = $stmt->fetch();
-      $entry = new Entry($result[Entry::$COLUMN_ID], $result[Entry::$COLUMN_GUID], $result[Entry::$COLUMN_TITLE], $result[Entry::$COLUMN_DATE], $result[Entry::$COLUMN_URL], $result[Entry::$COLUMN_AUTHOR], $result[Entry::$COLUMN_CONTENT], $result[Entry::$COLUMN_ENCLOSUREURL], $result[Entry::$COLUMN_ENCLOSURETYPE]);
+    public function findByGuid($guid)
+    {
+        $query = QueryGenerator::getInstance()->generateSelectQuery(Entry::$TABLE_NAME, [Entry::$COLUMN_ID], [Entry::$COLUMN_GUID]);
+        $parameters = array(
+            Entry::$COLUMN_GUID => $guid,
+        );
 
-      return $entry;
-      }
-     */
+        $stmt = Connection::getInstance()->executeQuery($query, true, $parameters);
+
+        $entry = null;
+        if ($stmt) {
+            $result = $stmt->fetch();
+            $entry = $this->find($result[Entry::$COLUMN_ID]);
+        }
+
+        return $entry;
+    }
 
     public function findByFeed(Feed $feed)
     {
-        $query = QueryGenerator::generateSelectQuery(Entry::$TABLE_NAME, null, [Entry::$COLUMN_FEED]);
+        $query = QueryGenerator::getInstance()->generateSelectQuery(Entry::$TABLE_NAME, [], [Entry::$COLUMN_FEEDID]);
         $parameters = array(
-            Entry::$COLUMN_FEED => $feed->getId()
+            Entry::$COLUMN_FEEDID => $feed->getId(),
         );
-        $stmt = $this->con->executeQuery($query, true, $parameters);
-        $results = $stmt->fetchAll();
 
+        $stmt = Connection::getInstance()->executeQuery($query, true, $parameters);
         $entries = array();
-        foreach ($results as $result)
-        {
-            if (!Finder::isInMap('Entry', $result[Entry::$COLUMN_ID]))
-            {
-                Finder::storeEntity(new Entry($result[Entry::$COLUMN_ID], $result[Entry::$COLUMN_GUID], $result[Entry::$COLUMN_TITLE], $result[Entry::$COLUMN_DATE], $result[Entry::$COLUMN_URL], $result[Entry::$COLUMN_AUTHOR], $result[Entry::$COLUMN_CONTENT], $result[Entry::$COLUMN_ENCLOSUREURL], $result[Entry::$COLUMN_ENCLOSURETYPE]));
+        if ($stmt) {
+            $results = $stmt->fetchAll();
+            foreach ($results as $result) {
+                if (!Finder::isInMap('Entry', $result[Entry::$COLUMN_ID])) {
+                    $entry = new Entry($result[Entry::$COLUMN_ID], $result[Entry::$COLUMN_GUID], $result[Entry::$COLUMN_TITLE], DateManipulator::getInstance()->fromDatabaseToDateTime($result[Entry::$COLUMN_DATE]), $result[Entry::$COLUMN_URL], $result[Entry::$COLUMN_CONTENT], $result[Entry::$COLUMN_AUTHOR], $result[Entry::$COLUMN_ENCLOSUREURL], $result[Entry::$COLUMN_ENCLOSURETYPE], $result[Entry::$COLUMN_ISREAD]);
+                    Finder::storeEntity($entry);
+                    $entry->setFeed(FeedMapper::getInstance()->find($result[Entry::$COLUMN_FEEDID]));
+                }
+                $entries[] = $this->find($result[Entry::$COLUMN_ID]);
             }
-            $entries[] = $this->find($result[Entry::$COLUMN_ID]);
         }
 
         return $entries;
     }
 
-    /**
-     * @return  array  Returns an array with all entries object
-     */
     public function findAll()
     {
-        $query = QueryGenerator::generateSelectQuery(Entry::$TABLE_NAME);
-        $stmt = $this->con->executeQuery($query, true);
-        $results = $stmt->fetchAll();
+        $query = QueryGenerator::getInstance()->generateSelectQuery(Entry::$TABLE_NAME, [], [], [Entry::$COLUMN_DATE], 'DESC');
+        $stmt = Connection::getInstance()->executeQuery($query, true);
 
         $entries = array();
-        foreach ($results as $result)
-        {
-            if (!Finder::isInMap('Entry', $result[Entry::$COLUMN_ID]))
-            {
-                Finder::storeEntity(new Entry($result[Entry::$COLUMN_ID], $result[Entry::$COLUMN_GUID], $result[Entry::$COLUMN_TITLE], $result[Entry::$COLUMN_DATE], $result[Entry::$COLUMN_URL], $result[Entry::$COLUMN_AUTHOR], $result[Entry::$COLUMN_CONTENT], $result[Entry::$COLUMN_ENCLOSUREURL], $result[Entry::$COLUMN_ENCLOSURETYPE]));
+        if ($stmt) {
+            $results = $stmt->fetchAll();
+            foreach ($results as $result) {
+                if (!Finder::isInMap('Entry', $result[Entry::$COLUMN_ID])) {
+                    $entry = new Entry($result[Entry::$COLUMN_ID], $result[Entry::$COLUMN_GUID], $result[Entry::$COLUMN_TITLE], DateManipulator::getInstance()->fromDatabaseToDateTime($result[Entry::$COLUMN_DATE]), $result[Entry::$COLUMN_URL], $result[Entry::$COLUMN_CONTENT], $result[Entry::$COLUMN_AUTHOR], $result[Entry::$COLUMN_ENCLOSUREURL], $result[Entry::$COLUMN_ENCLOSURETYPE], $result[Entry::$COLUMN_ISREAD]);
+                    Finder::storeEntity($entry);
+                    $entry->setFeed(FeedMapper::getInstance()->find($result[Entry::$COLUMN_FEEDID]));
+                }
+                $entries[] = $this->find($result[Entry::$COLUMN_ID]);
             }
-            $entries[] = $this->find($result[Entry::$COLUMN_ID]);
         }
 
         return $entries;
     }
 
-    /**
-     * @param  Entry  $entry  The Entry to insert
-     *
-     * @return bool  Returns `true` on success, `false` otherwise
-     */
-    public function insert(Entry $entry)
+    public function persist(Entry $entry)
     {
-        $query = QueryGenerator::generateInsertQuery(Entry::$TABLE_NAME, [Entry::$COLUMN_GUID, Entry::$COLUMN_TITLE, Entry::$COLUMN_DATE, Entry::$COLUMN_URL, Entry::$COLUMN_AUTHOR, Entry::$COLUMN_CONTENT, Entry::$COLUMN_ENCLOSUREURL, Entry::$COLUMN_ENCLOSURETYPE]);
-
+        $query = null;
         $parameters = array(
             Entry::$COLUMN_GUID => $entry->getGuid(),
             Entry::$COLUMN_TITLE => $entry->getTitle(),
-            Entry::$COLUMN_DATE => $entry->getDate(),
+            Entry::$COLUMN_DATE => DateManipulator::getInstance()->fromDateTimeToDatabase($entry->getDate()),
             Entry::$COLUMN_URL => $entry->getUrl(),
-            Entry::$COLUMN_AUTHOR => $entry->getAuthor(),
             Entry::$COLUMN_CONTENT => $entry->getContent(),
+            Entry::$COLUMN_AUTHOR => $entry->getAuthor(),
             Entry::$COLUMN_ENCLOSUREURL => $entry->getEnclosureUrl(),
-            Entry::$COLUMN_ENCLOSURETYPE => $entry->getEnclosureType()
+            Entry::$COLUMN_ENCLOSURETYPE => $entry->getEnclosureType(),
+            Entry::$COLUMN_ISREAD => $entry->getIsRead(),
+            Entry::$COLUMN_FEEDID => $entry->getFeed()->getId(),
         );
 
-        Finder::storeEntity($entry);
+        if (is_null($entry->getId())) {
+            $query = QueryGenerator::getInstance()->generateInsertQuery(Entry::$TABLE_NAME, [Entry::$COLUMN_GUID, Entry::$COLUMN_TITLE, Entry::$COLUMN_DATE, Entry::$COLUMN_URL, Entry::$COLUMN_CONTENT, Entry::$COLUMN_AUTHOR, Entry::$COLUMN_ENCLOSUREURL, Entry::$COLUMN_ENCLOSURETYPE, Entry::$COLUMN_ISREAD, Entry::$COLUMN_FEEDID]);
+            Connection::getInstance()->executeQuery($query, true, $parameters);
+            $entry->setId(intval(Connection::getInstance()->lastInsertId()));
+            Finder::storeEntity($entry);
+        } else {
+            $query = QueryGenerator::getInstance()->generateUpdateQuery(Entry::$TABLE_NAME, [Entry::$COLUMN_GUID, Entry::$COLUMN_TITLE, Entry::$COLUMN_DATE, Entry::$COLUMN_URL, Entry::$COLUMN_CONTENT, Entry::$COLUMN_AUTHOR, Entry::$COLUMN_ENCLOSUREURL, Entry::$COLUMN_ENCLOSURETYPE, Entry::$COLUMN_ISREAD, Entry::$COLUMN_FEEDID], [Entry::$COLUMN_ID]);
+            $parameters[Entry::$COLUMN_ID] = $entry->getId();
+            Connection::getInstance()->executeQuery($query, false, $parameters);
+        }
 
-        return $this->con->executeQuery($query, false, $parameters);
+        return $entry;
     }
 
-    /**
-     * @param  Entry  $entry  The Entry to update
-     *
-     * @return bool  Returns `true` on success, `false` otherwise
-     */
-    public function update(Entry $entry)
+    public function delete(Entry $entry)
     {
-        $query = QueryGenerator::generateUpdateQuery(Entry::$TABLE_NAME, [Entry::$COLUMN_GUID, Entry::$COLUMN_TITLE, Entry::$COLUMN_DATE, Entry::$COLUMN_URL, Entry::$COLUMN_AUTHOR, Entry::$COLUMN_CONTENT, Entry::$COLUMN_ENCLOSUREURL, Entry::$COLUMN_ENCLOSURETYPE], [Entry::$COLUMN_ID]);
+        $query = QueryGenerator::getInstance()->generateDeleteQuery(Entry::$TABLE_NAME, [Entry::$COLUMN_ID]);
 
         $parameters = array(
             Entry::$COLUMN_ID => $entry->getId(),
-            Entry::$COLUMN_GUID => $entry->getGuid(),
-            Entry::$COLUMN_TITLE => $entry->getTitle(),
-            Entry::$COLUMN_DATE => $entry->getDate(),
-            Entry::$COLUMN_URL => $entry->getUrl(),
-            Entry::$COLUMN_AUTHOR => $entry->getAuthor(),
-            Entry::$COLUMN_CONTENT => $entry->getContent(),
-            Entry::$COLUMN_ENCLOSUREURL => $entry->getEnclosureUrl(),
-            Entry::$COLUMN_ENCLOSURETYPE => $entry->getEnclosureType()
         );
 
-        return $this->con->executeQuery($query, false, $parameters);
+        return Connection::getInstance()->executeQuery($query, false, $parameters);
     }
-
-    /**
-     * @param  Entry  $entry  The Entry to delete
-     *
-     * @return bool  Returns `true` on success, `false` otherwise
-     */
-    public function delete(Entry $entry)
-    {
-        $query = QueryGenerator::generateDeleteQuery(Entry::$TABLE_NAME, [Entry::$COLUMN_ID]);
-
-        $parameters = array(
-            Entry::$COLUMN_ID => $entry->getId()
-        );
-
-        return $this->con->executeQuery($query, false, $parameters);
-    }
-
 }

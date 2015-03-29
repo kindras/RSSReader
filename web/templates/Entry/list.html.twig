@@ -1,25 +1,47 @@
 {% extends "layout.html.twig" %}
 
-{% block content %}
+{% block page %}entries{% endblock %}
 
-    <div class="list-block accordion-list">
-        <ul>
-            {% for entry in entries %}
-                <li class="accordion-item">
-                    <a href="" class="item-link item-content">
-                        <div class="item-inner">
-                            <div class="item-title">{{ entry.title }}</div>
-                        </div>
-                    </a> 
-                    <div class="accordion-item-content">
-                        <div class="content-block">
-                            <p>{{ entry.content }}</p>
-                            <p>{{ entry.author }} le <i>{{ entry.date|date('d/m/Y h:i') }}</i></p>
-                        </div>
-                    </div>
-                </li>
-            {% endfor %}
-        </ul>
+{% block navbar %}
+    <div class="navbar">
+        <div class="navbar-inner">
+            <!-- Now, Left and Center parts reflect page title and page links, let's slide them -->
+            <div class="center sliding">Home</div>
+
+            <!-- Right part doesn't related to other pages -->
+            <div class="right">
+                <a href="#" class="link icon-only open-panel"><i class="icon icon-bars"></i></a>
+            </div>
+        </div>
     </div>
+{% endblock %}
 
+{% block content %}
+    {% if entries|length > 0 %}
+        <div class="list-block">
+            <ul>
+                {% for entry in entries %}
+                    <li class="list-item">
+                        <a href="/app.php/entry/{{ entry.id }}" class="item-link item-content">
+                            <div class="item-inner">
+                                <div class="item-title">
+                                    <span style="color: #888;">{{ entry.feed.title|raw }}</span> | {% if not entry.isRead %}<span class="entryTitle" style="font-weight: bold;">{{ entry.title|raw }}</span>{% else %}{{ entry.title|raw }}{% endif %}
+                                </div>
+                            </div>
+                        </a> 
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% else %}
+        <div class="content-block-title">
+            No informations to show
+        </div>
+
+        <div class="content-block">
+            <div class="content-block-inner">
+                <p>You have not subscribed any feed yet. You can add a feed <a href="#" class="link open-addFeed">here</a>.</p>
+            </div>
+        </div>
+    {% endif %}
 {% endblock %}

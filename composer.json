@@ -1,17 +1,29 @@
 {
     "require": {
         "silex/silex": "~1.2",
-        "twig/twig": "~1.0"
+        "twig/twig": "~1.0",
+        "fguillot/picofeed": "0.1.2",
+        "symfony/twig-bridge": "v2.6.5",
+
+        "knplabs/console-service-provider": "v1.0",
+        "symfony/serializer": "v2.6.5"
     },
   	"require-dev": {
-	  	"phpunit/phpunit": "4.5.*"
+	  	"behat/behat": "2.*",
+        "phpunit/phpunit": "*"
 	},
     "autoload": {
-		"classmap": [
-			"src/Entity",
-			"src/Controller",
-			"src/DataAccessLayer",
-			"src/Repository"
-		]
-	}
+        "classmap": [
+            "src/Entity",
+            "src/Controller",
+            "src/DataAccessLayer",
+            "src/Repository",
+            "src/Mapper",
+            "src/Finder",
+            "src/Stub",
+            "src/Tool",
+            "src/Credentials",
+            "src/Command"
+        ]
+    }
 }

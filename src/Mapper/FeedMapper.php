@@ -3,145 +3,122 @@
 class FeedMapper implements FeedRepository
 {
 
-    private $con;
+    private static $instance = null;
 
-    public function __construct($con)
+    public static function getInstance()
     {
-        $this->con = $con;
+        if (null === self::$instance) {
+            self::$instance = new FeedMapper();
+        }
+
+        return self::$instance;
     }
 
-    /**
-     * @param  int   $id  The id of the feed to retrieve
-     *
-     * @return bool  Returns the feed found
-     */
+    private function __construct()
+    {
+    }
+
     public function find($id)
     {
         $feed = null;
-        if (false !== ($feedLoaded = Finder::loadEntity('Feed', $id)))
-        {
+        if (false !== ($feedLoaded = Finder::loadEntity('Feed', $id))) {
             $feed = $feedLoaded;
-        }
-        else
-        {
-            $query = QueryGenerator::generateSelectQuery(Feed::$TABLE_NAME, null, [Feed::$COLUMN_ID]);
+        } else {
+            $query = QueryGenerator::getInstance()->generateSelectQuery(Feed::$TABLE_NAME, [], [Feed::$COLUMN_ID]);
             $parameters = array(
-                Feed::$COLUMN_ID => $id
+                Feed::$COLUMN_ID => $id,
             );
-            $stmt = $this->con->executeQuery($query, true, $parameters);
-            $result = $stmt->fetch();
-            $feed = new Feed($result[Feed::$COLUMN_ID], $result[Feed::$COLUMN_GUID], $result[Feed::$COLUMN_TITLE], $result[Feed::$COLUMN_DESCRIPTION], $result[Feed::$COLUMN_FEEDURL], $result[Feed::$COLUMN_SITEURL], $result[Feed::$COLUMN_DATE], $result[Feed::$COLUMN_LOGO], $result[Feed::$COLUMN_ICON]);
+            $stmt = Connection::getInstance()->executeQuery($query, true, $parameters);
 
-            Finder::storeEntity($feed);
+            if ($stmt) {
+                $result = $stmt->fetch();
+                $feed = new Feed($result[Feed::$COLUMN_ID], $result[Feed::$COLUMN_GUID], $result[Feed::$COLUMN_TITLE], $result[Feed::$COLUMN_DESCRIPTION], $result[Feed::$COLUMN_FEEDURL], $result[Feed::$COLUMN_SITEURL], DateManipulator::getInstance()->fromDatabaseToDateTime($result[Feed::$COLUMN_DATE]), $result[Feed::$COLUMN_LOGO], $result[Feed::$COLUMN_ICON]);
+                Finder::storeEntity($feed);
+                $feed->setEntries(EntryMapper::getInstance()->findByFeed($feed));
+            }
         }
 
-        $entryMapper = new EntryMapper($this->con);
-        $feed->setEntries($entryMapper->findByFeed($feed));
-        
         return $feed;
     }
 
-    /*
-      public function find($id)
-      {
-      $query = QueryGenerator::generateSelectQuery(Feed::$TABLE_NAME, null, [Feed::$COLUMN_ID]);
-      $parameters = array(
-      Feed::$COLUMN_ID => $id
-      );
-      var_dump($query);
-      $stmt = $this->con->executeQuery($query, true, $parameters);
-      $result = $stmt->fetch();
-      $feed = new Feed($result[Feed::$COLUMN_ID], $result[Feed::$COLUMN_GUID], $result[Feed::$COLUMN_TITLE], $result[Feed::$COLUMN_DESCRIPTION], $result[Feed::$COLUMN_FEEDURL], $result[Feed::$COLUMN_SITEURL], $result[Feed::$COLUMN_DATE], $result[Feed::$COLUMN_LOGO], $result[Feed::$COLUMN_ICON]);
-
-      return $feed;
-      }
-     */
-
-    /**
-     * @return  array  Returns an array with all feeds object
-     */
     public function findAll()
     {
-        $query = QueryGenerator::generateSelectQuery(Feed::$TABLE_NAME);
-        $stmt = $this->con->executeQuery($query, true);
-        $results = $stmt->fetchAll();
+        $query = QueryGenerator::getInstance()->generateSelectQuery(Feed::$TABLE_NAME, [], [], [Feed::$COLUMN_TITLE], 'ASC');
+        $stmt = Connection::getInstance()->executeQuery($query, true);
 
         $feeds = array();
-        foreach ($results as $result)
-        {
-            if(!Finder::isInMap('Feed', $result[Feed::$COLUMN_ID]))
-            {
-                Finder::storeEntity(new Feed($result[Feed::$COLUMN_ID], $result[Feed::$COLUMN_GUID], $result[Feed::$COLUMN_TITLE], $result[Feed::$COLUMN_DESCRIPTION], $result[Feed::$COLUMN_FEEDURL], $result[Feed::$COLUMN_SITEURL], $result[Feed::$COLUMN_DATE], $result[Feed::$COLUMN_LOGO], $result[Feed::$COLUMN_ICON]));
+        if ($stmt) {
+            $results = $stmt->fetchAll();
+            foreach ($results as $result) {
+                if (!Finder::isInMap('Feed', $result[Feed::$COLUMN_ID])) {
+                    Finder::storeEntity(new Feed($result[Feed::$COLUMN_ID], $result[Feed::$COLUMN_GUID], $result[Feed::$COLUMN_TITLE], $result[Feed::$COLUMN_DESCRIPTION], $result[Feed::$COLUMN_FEEDURL], $result[Feed::$COLUMN_SITEURL], DateManipulator::getInstance()->fromDatabaseToDateTime($result[Feed::$COLUMN_DATE]), $result[Feed::$COLUMN_LOGO], $result[Feed::$COLUMN_ICON]));
+                }
+                $feeds[] = $this->find($result[Feed::$COLUMN_ID]);
             }
-            $feeds[] = $this->find($result[Feed::$COLUMN_ID]);
         }
 
         return $feeds;
     }
 
-    /**
-     * @param  Feed  $feed  The Feed to insert
-     *
-     * @return bool  Returns `true` on success, `false` otherwise
-     */
-    public function insert(Feed $feed)
+    public function findByFeedUrl($url)
     {
-        $query = QueryGenerator::generateInsertQuery(Feed::$TABLE_NAME, [Feed::$COLUMN_GUID, Feed::$COLUMN_TITLE, Feed::$COLUMN_DESCRIPTION, Feed::$COLUMN_FEEDURL, Feed::$COLUMN_SITEURL, Feed::$COLUMN_DATE, Feed::$COLUMN_LOGO, Feed::$COLUMN_ICON]);
+        $query = QueryGenerator::getInstance()->generateSelectQuery(Feed::$TABLE_NAME, [Feed::$COLUMN_ID], [Feed::$COLUMN_FEEDURL], [Feed::$COLUMN_TITLE], 'ASC');
+        $parameters = array(
+            Feed::$COLUMN_FEEDURL => $url,
+        );
 
+        $stmt = Connection::getInstance()->executeQuery($query, true, $parameters);
+
+        $feed = null;
+        if ($stmt) {
+            $result = $stmt->fetch();
+            $feed = $this->find($result[Feed::$COLUMN_ID]);
+        }
+
+        return $feed;
+    }
+
+    public function persist(Feed $feed)
+    {
+        $query = null;
         $parameters = array(
             Feed::$COLUMN_GUID => $feed->getGuid(),
             Feed::$COLUMN_TITLE => $feed->getTitle(),
             Feed::$COLUMN_DESCRIPTION => $feed->getDescription(),
             Feed::$COLUMN_FEEDURL => $feed->getFeedUrl(),
             Feed::$COLUMN_SITEURL => $feed->getSiteUrl(),
-            Feed::$COLUMN_DATE => $feed->getDate(),
+            Feed::$COLUMN_DATE => DateManipulator::getInstance()->fromDateTimeToDatabase($feed->getDate()),
             Feed::$COLUMN_LOGO => $feed->getLogo(),
-            Feed::$COLUMN_ICON => $feed->getIcon()
+            Feed::$COLUMN_ICON => $feed->getIcon(),
         );
 
-        Finder::storeEntity($feed);
+        if (is_null($feed->getId())) {
+            $query = QueryGenerator::getInstance()->generateInsertQuery(Feed::$TABLE_NAME, [Feed::$COLUMN_GUID, Feed::$COLUMN_TITLE, Feed::$COLUMN_DESCRIPTION, Feed::$COLUMN_FEEDURL, Feed::$COLUMN_SITEURL, Feed::$COLUMN_DATE, Feed::$COLUMN_LOGO, Feed::$COLUMN_ICON]);
+            Connection::getInstance()->executeQuery($query, false, $parameters);
+            $feed->setId(intval(Connection::getInstance()->lastInsertId()));
+            Finder::storeEntity($feed);
+        } else {
+            $query = QueryGenerator::getInstance()->generateUpdateQuery(Feed::$TABLE_NAME, [Feed::$COLUMN_GUID, Feed::$COLUMN_TITLE, Feed::$COLUMN_DESCRIPTION, Feed::$COLUMN_FEEDURL, Feed::$COLUMN_SITEURL, Feed::$COLUMN_DATE, Feed::$COLUMN_LOGO, Feed::$COLUMN_ICON], [Feed::$COLUMN_ID]);
+            $parameters[Feed::$COLUMN_ID] = $feed->getId();
+            Connection::getInstance()->executeQuery($query, false, $parameters);
+        }
 
-        return $this->con->executeQuery($query, false, $parameters);
+        foreach ($feed->getEntries() as $entry) {
+            $entry->setFeed($feed);
+            EntryMapper::getInstance()->persist($entry);
+        }
+
+        return $feed;
     }
 
-    /**
-     * @param  Feed  $feed  The Feed to update
-     *
-     * @return bool  Returns `true` on success, `false` otherwise
-     */
-    public function update(Feed $feed)
+    public function delete(Feed $feed)
     {
-        $query = QueryGenerator::generateUpdateQuery(Feed::$TABLE_NAME, [Feed::$COLUMN_GUID, Feed::$COLUMN_TITLE, Feed::$COLUMN_DESCRIPTION, Feed::$COLUMN_FEEDURL, Feed::$COLUMN_SITEURL, Feed::$COLUMN_DATE, Feed::$COLUMN_LOGO, Feed::$COLUMN_ICON], [Feed::$COLUMN_ID]);
+        $query = QueryGenerator::getInstance()->generateDeleteQuery(Feed::$TABLE_NAME, [Feed::$COLUMN_ID]);
 
         $parameters = array(
             Feed::$COLUMN_ID => $feed->getId(),
-            Feed::$COLUMN_GUID => $feed->getGuid(),
-            Feed::$COLUMN_TITLE => $feed->getTitle(),
-            Feed::$COLUMN_DESCRIPTION => $feed->getDescription(),
-            Feed::$COLUMN_FEEDURL => $feed->getFeedUrl(),
-            Feed::$COLUMN_SITEURL => $feed->getSiteUrl(),
-            Feed::$COLUMN_DATE => $feed->getDate(),
-            Feed::$COLUMN_LOGO => $feed->getLogo(),
-            Feed::$COLUMN_ICON => $feed->getIcon()
         );
 
-        return $this->con->executeQuery($query, false, $parameters);
+        return Connection::getInstance()->executeQuery($query, false, $parameters);
     }
-
-    /**
-     * @param  Feed  $feed  The Feed to delete
-     *
-     * @return bool  Returns `true` on success, `false` otherwise
-     */
-    public function delete(Feed $feed)
-    {
-        $query = QueryGenerator::generateDeleteQuery(Feed::$TABLE_NAME, [Feed::$COLUMN_ID]);
-
-        $parameters = array(
-            Feed::$COLUMN_ID => $feed->getId()
-        );
-
-        return $this->con->executeQuery($query, false, $parameters);
-    }
-
 }

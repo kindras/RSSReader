@@ -2,134 +2,121 @@
 
 class QueryGenerator
 {
+    private static $instance = null;
 
-    private static $directions = ['ASC', 'DESC'];
-
-    public static function generateSelectQuery($tableName, $selects = null, $wheres = null, $orderBys = null, $direction = null)
+    public static function getInstance()
     {
-        // Design the selected attributes in the Query.
-        $selectStmt = '*';
-        if (!is_null($selects))
-        {
-            $selectStmt = '';
-            foreach ($selects as $select)
-            {
-                if ($selectStmt !== '')
-                {
-                    $selectStmt = $selectStmt . ',' . $select;
-                }
-                else
-                {
-                    $selectStmt = $selectStmt . $select;
-                }
-            }
+        if (null === self::$instance) {
+            self::$instance = new QueryGenerator();
         }
 
-        // Design the where statement in the Query.
-        $whereStmt = null;
-        if (!is_null($wheres))
-        {
-            $whereStmt = 'WHERE ';
-            foreach ($wheres as $where)
-            {
-                if ($whereStmt !== 'WHERE ')
-                {
-                    $whereStmt = $whereStmt . ' AND ' . $where . ' = :' . $where;
-                }
-                else
-                {
-                    $whereStmt = $whereStmt . $where . ' = :' . $where;
-                }
-            }
+        return self::$instance;
+    }
+
+    private function __construct()
+    {
+    }
+
+    private $directions = ['ASC', 'DESC'];
+    private $selectDefault = '*';
+
+    public function generateSelectQuery($tableName, array $selects = [], array $wheres = [], array $orderBys = [], $direction = 'ASC')
+    {
+        $selectStmt = $this->generateAttributeStatement($selects);
+        $whereStmt = $this->generateAttributeWithValueStatement($wheres, 'WHERE');
+        $orderByStmt = $this->generateAttributeStatement($orderBys, 'ORDER BY');
+
+        if ($selectStmt === '') {
+            $selectStmt = $this->selectDefault;
         }
 
-        // Design the orderBy statement in the query.
-        $orderByStmt = null;
-        if (!is_null($orderBys))
-        {
-            $orderByStmt = 'ORDER BY ';
-            foreach ($orderBys as $orderBy)
-            {
-                if ($orderByStmt !== 'ORDER BY ')
-                {
-                    $orderByStmt = $orderByStmt . ',' . $orderBy;
-                }
-                else
-                {
-                    $orderByStmt = $orderByStmt . $orderBy;
-                }
+        if ($orderByStmt !== '') {
+            if (!in_array($direction, $this->directions)) {
+                $direction = $this->directions[0];
             }
-
-            if (!in_array($direction, self::$directions))
-            {
-                $direction = self::$directions[0];
-            }
-        }
-        else
-        {
+        } else {
             $direction = null;
         }
 
-        $query = 'SELECT ' . $selectStmt . ' FROM ' . $tableName . ' ' . $whereStmt . ' ' . $orderByStmt . ' ' . $direction;
-        return $query;
-    }
-
-    public static function generateInsertQuery($tableName, array $attributes)
-    {
-        $query = 'INSERT INTO ' . $tableName . ' (';
-        foreach ($attributes as $attribute)
-        {
-            $query = $query . $attribute . ',';
-        }
-        $query[strlen($query) - 1] = ')';
-
-        $query = $query . ' VALUES (';
-        foreach ($attributes as $attribute)
-        {
-            $query = $query . ':' . $attribute . ',';
-        }
-        $query[strlen($query) - 1] = ')';
+        $query = 'SELECT '.$selectStmt.' FROM '.$tableName.' '.$whereStmt.' '.$orderByStmt.' '.$direction;
 
         return $query;
     }
 
-    public static function generateUpdateQuery($tableName, array $attributes, array $wheres = [])
+    public function generateInsertQuery($tableName, array $inserts)
     {
-        $query = 'UPDATE ' . $tableName . ' SET';
-        foreach ($attributes as $attribute)
-        {
-            $query = $query . ' ' . $attribute . ' = :' . $attribute . ',';
-        }
-        $query[strlen($query) - 1] = ' ';
+        $insertStmt = $this->generateAttributeStatement($inserts);
+        $valueStmt = $this->generateValueStatement($inserts);
 
-        if (count($wheres) > 0)
-        {
-            $query = $query . ' WHERE';
-            foreach ($wheres as $where)
-            {
-                $query = $query . ' ' . $where . ' = :' . $where . ',';
+        $query = 'INSERT INTO '.$tableName.' ('.$insertStmt.') VALUES ('.$valueStmt.')';
+
+        return $query;
+    }
+
+    public function generateUpdateQuery($tableName, array $sets, array $wheres = [])
+    {
+        $setStmt = $this->generateAttributeWithValueStatement($sets, 'SET');
+        $whereStmt = $this->generateAttributeWithValueStatement($wheres, 'WHERE');
+
+        $query = 'UPDATE '.$tableName.' '.$setStmt.' '.$whereStmt;
+
+        return $query;
+    }
+
+    public function generateDeleteQuery($tableName, array $wheres = null)
+    {
+        $whereStmt = $this->generateAttributeWithValueStatement($wheres, 'WHERE');
+
+        $query = 'DELETE FROM '.$tableName.' '.$whereStmt;
+
+        return $query;
+    }
+
+    // Private method for Query Generation.
+    private function generateAttributeWithValueStatement($attributes, $keyword = null)
+    {
+        $stmt = '';
+        foreach ($attributes as $attribute) {
+            if ($stmt !== '') {
+                $stmt .= ',';
             }
-            $query[strlen($query) - 1] = ' ';
+            $stmt .= $attribute.' = :'.$attribute;
         }
+        $stmt = (!is_null($keyword) && $stmt !== '') ? $this->addKeywordToStatement($stmt, $keyword) : $stmt;
 
-        return $query;
+        return $stmt;
     }
 
-    public static function generateDeleteQuery($tableName, array $wheres = [])
+    private function generateValueStatement($attributes, $keyword = null)
     {
-        $query = 'DELETE FROM ' . $tableName . '';
-
-        if (count($wheres) > 0)
-        {
-            $query = $query . ' WHERE';
-            foreach ($wheres as $where)
-            {
-                $query = $query . ' ' . $where . ' = :' . $where . ',';
+        $stmt = '';
+        foreach ($attributes as $attribute) {
+            if ($stmt !== '') {
+                $stmt .= ',';
             }
-            $query[strlen($query) - 1] = '';
+            $stmt .= ':'.$attribute;
         }
+        $stmt = (!is_null($keyword) && $stmt !== '') ? $this->addKeywordToStatement($stmt, $keyword) : $stmt;
 
-        return $query;
+        return $stmt;
     }
 
+    private function generateAttributeStatement($attributes, $keyword = null)
+    {
+        $stmt = '';
+        foreach ($attributes as $attribute) {
+            if ($stmt !== '') {
+                $stmt .= ',';
+            }
+            $stmt .= $attribute;
+        }
+        $stmt = (!is_null($keyword) && $stmt !== '') ? $this->addKeywordToStatement($stmt, $keyword) : $stmt;
+
+        return $stmt;
+    }
+
+    private function addKeywordToStatement($stmt, $keyword)
+    {
+        return $keyword.' '.$stmt;
+    }
 }

@@ -3,44 +3,26 @@
 class EntryController
 {
 
-    private $repository;
-    private $engine;
+    private $app;
 
-    public function __construct($repository = null, $engine = null)
+    public function __construct($app = null)
     {
-        $this->repository = $repository;
-        $this->engine = $engine;
+        $this->app = $app;
     }
 
     public function listAction()
     {
-        $entries = $this->repository->findAll();
-        return $this->engine->render('Entry/list.html.twig', array('entries' => $entries));
-    }
-    
-    public function viewAction($id)
-    {
-        $entry = $this->repository->find($id);
-        
-        return $this->engine->render('Entry/view.html.twig', array('entry' => $entry));
-    }
-    
-    public function updateAction($id)
-    {
-        $entry = $this->repository->find($id);
-        
-        $this->repository->update($entry);
-        
-        return $this->listAction();
-    }
-    
-    public function deleteAction($id)
-    {
-        $entry = $this->repository->find($id);
-        
-        $this->repository->delete($entry);
-        
-        return $this->listAction();
+        $entries = EntryMapper::getInstance()->findAll();
+
+        return $this->app['twig']->render('Entry/list.html.twig', array('entries' => $entries));
     }
 
+    public function viewAction($id)
+    {
+        $entry = EntryMapper::getInstance()->find($id);
+        $entry->setIsRead(true);
+        EntryMapper::getInstance()->persist($entry);
+
+        return $this->app['twig']->render('Entry/view.html.twig', array('entry' => $entry));
+    }
 }

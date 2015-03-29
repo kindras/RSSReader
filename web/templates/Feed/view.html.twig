@@ -1,23 +1,41 @@
 {% extends "layout.html.twig" %}
 
-{% block title %}{{ feed.title }}{% endblock %}
+{% block page %}feed{% endblock %}
+
+{% block navbar %}
+    <div class="navbar">
+        <div class="navbar-inner">
+            <!-- Now, Left and Center parts reflect page title and page links, let's slide them -->
+            <div class="left sliding">
+                <a href="/app.php/feeds/all" class="link">
+                    <i class="icon icon-back">&nbsp;</i>
+                    <span>Feeds</span>
+                </a>
+            </div>
+            <div class="center sliding">{{ feed.title }}</div>
+
+            <!-- Right part doesn't related to other pages -->
+            <div class="right">
+                <a href="#" data-id="{{ feed.id }}" class="link icon-only refresh">Refresh</a>
+                <a href="#" class="link icon-only open-panel"><i class="icon icon-bars"></i></a>
+            </div>
+        </div>
+    </div>
+{% endblock %}
 
 {% block content %}
-    <div class="list-block accordion-list">
+    {# <p>{{ feed.description }}</p> #}
+    <div class="list-block">
         <ul>
             {% for entry in feed.entries %}
-                <li class="accordion-item">
-                    <a href="" class="item-link item-content">
+                <li class="list-item">
+                    <a href="/app.php/entry/{{ entry.id }}" class="item-link item-content">
                         <div class="item-inner">
-                            <div class="item-title">{{ entry.title }}</div>
+                            <div class="item-title">
+                                {% if not entry.isRead %}<span style="font-weight: bold;">{{ entry.title|raw }}</span>{% else %}{{ entry.title|raw }}{% endif %}
+                            </div>
                         </div>
                     </a> 
-                    <div class="accordion-item-content">
-                        <div class="content-block">
-                            <p>{{ entry.content }}</p>
-                            <p>{{ entry.author }} le <i>{{ entry.date|date('d/m/Y h:i') }}</i></p>
-                        </div>
-                    </div>
                 </li>
             {% endfor %}
         </ul>

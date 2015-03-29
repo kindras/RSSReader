@@ -1,6 +1,14 @@
 // Initialize your app
 var myApp = new Framework7({
-    pushState: true
+    pushState: true,
+    cache: false,
+    // Hide and show indicator during ajax requests
+    onAjaxStart: function (xhr) {
+        myApp.showIndicator();
+    },
+    onAjaxComplete: function (xhr) {
+        myApp.hideIndicator();
+    }
 });
 
 // Export selectors engine
@@ -9,42 +17,101 @@ var $$ = Dom7;
 // Add view
 var mainView = myApp.addView('.view-main', {
     // Because we use fixed-through navbar we can enable dynamic navbar
-    dynamicNavbar: true
+    dynamicNavbar: true,
+    allowDuplicateUrls: true
 });
 
-// Callbacks to run specific code for specific pages, for example for About page:
-myApp.onPageInit('about', function (page) {
-    // run createContentPage func after link was clicked
-    $$('.create-page').on('click', function () {
-        createContentPage();
+myApp.onPageInit('manageFeeds', function (page) {
+    $$('.swipeout').on('deleted', function () {
+        $$.ajax({
+            url: '/app.php/feeds/' + $$(this).attr('data-id'),
+            method: 'DELETE',
+            success: function (data, status, xhr) {
+                result = JSON.parse(data);
+                myApp.alert(result.message, 'Remove feed', function ()
+                {
+                    if (result.status === 200)
+                    {
+                        mainView.router.loadPage('/app.php/feeds/manage');
+                    }
+                });
+            }
+        });
     });
 });
 
-// Generate dynamic page
-var dynamicPageIndex = 0;
-function createContentPage() {
-	mainView.router.loadContent(
-        '<!-- Top Navbar-->' +
-        '<div class="navbar">' +
-        '  <div class="navbar-inner">' +
-        '    <div class="left"><a href="#" class="back link"><i class="icon icon-back"></i><span>Back</span></a></div>' +
-        '    <div class="center sliding">Dynamic Page ' + (++dynamicPageIndex) + '</div>' +
-        '  </div>' +
-        '</div>' +
-        '<div class="pages">' +
-        '  <!-- Page, data-page contains page name-->' +
-        '  <div data-page="dynamic-pages" class="page">' +
-        '    <!-- Scrollable page content-->' +
-        '    <div class="page-content">' +
-        '      <div class="content-block">' +
-        '        <div class="content-block-inner">' +
-        '          <p>Here is a dynamic page created on ' + new Date() + ' !</p>' +
-        '          <p>Go <a href="#" class="back">back</a> or go to <a href="services.html">Services</a>.</p>' +
-        '        </div>' +
-        '      </div>' +
-        '    </div>' +
-        '  </div>' +
-        '</div>'
-    );
-	return;
+popupAlreadyDefined = false;
+function initPopupAddFeed()
+{
+    $$('.open-addFeed').on('click', function () {
+        myApp.popup('.popup-addFeed');
+
+        $$('.popup-addFeed').on('opened', function () {
+            if (!popupAlreadyDefined)
+            {
+                popupAlreadyDefined = true;
+                $$('.popup-addFeed form').on('submit', function (event) {
+                    $$.ajax({
+                        url: '/app.php/feeds/subscribe',
+                        method: 'POST',
+                        data: $(this).serialize(),
+                        success: function (data, status, xhr) {
+                            result = JSON.parse(data);
+                            myApp.alert(result.message, 'Add feed', function ()
+                            {
+                                if (result.status === 201)
+                                {
+                                    myApp.closeModal('.popup-addFeed');
+                                    mainView.router.loadPage('/app.php/feeds/' + result.feedId);
+                                }
+                            });
+                        }
+                    });
+
+                    event.preventDefault()
+                    return false;
+                });
+            }
+        });
+    });
 }
+
+function initRefreshButton()
+{
+    $$('a.refresh').on('click', function (event) {
+        $$.ajax({
+            url: '/app.php/feeds/refresh/' + $$(this).attr('data-id'),
+            method: 'PUT',
+            data: $(this).serialize(),
+            success: function (data, status, xhr) {
+                result = JSON.parse(data);
+                if (result.status === 200)
+                {
+                    mainView.router.loadPage('/app.php/feeds/' + result.feedId);
+                }
+                else
+                {
+                    myApp.alert(result.message, 'Error');
+                }
+            }
+        });
+    });
+}
+
+myApp.onPageInit('entry', function (page) {
+    $$('.page-content .entry a').addClass('external').attr('target', '_blank');
+});
+
+myApp.onPageInit('*', function (page) {
+    $$('.open-addFeed').on('click', function () {
+        myApp.popup('.popup-addFeed');
+    });
+});
+
+myApp.onPageBeforeAnimation('*', function (page) {
+    initPopupAddFeed();
+    initRefreshButton();
+});
+
+initPopupAddFeed();
+initRefreshButton();

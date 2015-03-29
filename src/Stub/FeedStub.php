@@ -1,18 +1,16 @@
 <?php
 
-class InMemoryFeed implements FeedRepository
+class FeedStub implements FeedRepository
 {
 
     private $feeds = [];
 
     public function __construct()
     {
-        
     }
 
     public function find($id)
     {
-        
     }
 
     public function findAll()
@@ -20,19 +18,13 @@ class InMemoryFeed implements FeedRepository
         return $this->feeds;
     }
 
-    public function insert()
+
+    public function delete(Feed $feed)
     {
-        
     }
 
-    public function update()
+    public function persist(Feed $feed)
     {
-        
-    }
 
-    public function delete()
-    {
-        
     }
-
 }
